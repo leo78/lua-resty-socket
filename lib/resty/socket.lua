@@ -1,16 +1,19 @@
 local get_phase, ngx_socket, has_cosocket, log, warn
+local setmetatable = setmetatable
+local rawget = rawget
+local type = type
 
 --- ngx_lua utils
 
 if ngx ~= nil then
-  get_phase = ngx.get_phase
-  ngx_socket = ngx.socket
   log = ngx.log
   warn = ngx.WARN
+  get_phase = ngx.get_phase
+  ngx_socket = ngx.socket
   has_cosocket = function()
     local phase = get_phase()
     return phase == "rewrite" or phase == "access"
-        or phase == "content" or phase == "timer"
+        or phase == "content" or phase == "timer", phase
   end
 else
   log = function()end
@@ -30,11 +33,9 @@ function luasocket_mt:__index(key)
 
   local orig = self.sock[key]
   if type(orig) == "function" then
-    local f = function(_, ...)
+    return function(_, ...)
       return orig(self.sock, ...)
     end
-    self[key] = f
-    return f
   end
 
   return orig
@@ -59,52 +60,52 @@ end
 --- Perform SSL handshake.
 -- Mimics the ngx_lua `sslhandshake()` signature with an additional argument
 -- to specify other SSL options for plain Lua.
-function luasocket_mt:sslhandshake(reused_session, _, verify, luasec_opts)
-  luasec_opts = luasec_opts or {}
+function luasocket_mt:sslhandshake(reused_session, _, verify, opts)
+  opts = opts or {}
   local return_bool = reused_session == false
 
   local ssl = require "ssl"
   local params = {
     mode = "client",
     protocol = "tlsv1",
-    key = luasec_opts.key,
-    certificate = luasec_opts.certificate,
-    cafile = luasec_opts.ca,
+    key = opts.key,
+    certificate = opts.cert,
+    cafile = opts.cafile,
     verify = verify and "peer" or "none",
     options = "all"
   }
 
-  local ssl_sock, err = ssl.wrap(self.sock, params)
-  if err then
+  local err
+  self.sock, err = ssl.wrap(self.sock, params)
+  if not self.sock then
     return return_bool and false or nil, err
   end
 
-  local ok, err = ssl_sock:dohandshake()
+  local ok, err = self.sock:dohandshake()
   if not ok then
     return return_bool and false or nil, err
   end
 
-  self.sock = ssl_sock
-
-  return return_bool and true or ssl_sock
+  return return_bool and true or self
 end
 
 --- Module
 
 return {
   tcp = function(...)
-    if has_cosocket() then
+    local ok, phase = has_cosocket()
+    if ok then
       return ngx_socket.tcp(...)
-    else
+    elseif phase ~= "init" then
       log(warn, "no support for cosockets in this context, falling back on LuaSocket")
-
-      local socket = require "socket"
-
-      return setmetatable({
-        sock = socket.tcp(...)
-      }, luasocket_mt)
     end
+
+    local socket = require "socket"
+
+    return setmetatable({
+      sock = socket.tcp(...)
+    }, luasocket_mt)
   end,
   luasocket_mt = luasocket_mt,
-  _VERSION = "0.0.1"
+  _VERSION = "0.0.3"
 }
