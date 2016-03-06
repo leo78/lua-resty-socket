@@ -49,7 +49,10 @@ function luasocket_mt.getreusedtimes()
 end
 
 function luasocket_mt:settimeout(t)
-  self.sock:settimeout(t/1000)
+  if t then
+    t = t/1000
+  end
+  self.sock:settimeout(t)
 end
 
 function luasocket_mt:setkeepalive()
@@ -107,5 +110,5 @@ return {
     }, luasocket_mt)
   end,
   luasocket_mt = luasocket_mt,
-  _VERSION = "0.0.3"
+  _VERSION = "0.0.4"
 }
