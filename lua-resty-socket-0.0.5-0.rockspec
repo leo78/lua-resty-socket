@@ -1,16 +1,16 @@
 -- This file was automatically generated for the LuaDist project.
 
 package = "lua-resty-socket"
-version = "0.0.4-0"
+version = "0.0.5-0"
 -- LuaDist source
 source = {
-  tag = "0.0.4-0",
-  url = "git://github.com/LuaDist2/lua-resty-socket.git"
+  url = "git://github.com/LuaDist2/lua-resty-socket.git",
+  tag = "0.0.5-0"
 }
 -- Original source
 -- source = {
 --   url = "git://github.com/thibaultCha/lua-resty-socket",
---   tag = "0.0.4"
+--   tag = "0.0.5"
 -- }
 description = {
   summary = "Graceful fallback to LuaSocket for ngx_lua",
